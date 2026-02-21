@@ -14,8 +14,14 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  Cell,
 } from "recharts";
 import type { ChartSpec } from "@/lib/chart-spec";
+import { TEAM_COLORS } from "@/lib/team-colors";
+
+function getTeamColor(name: string): string | null {
+  return TEAM_COLORS[name]?.primary ?? null;
+}
 
 const COLORS = [
   "#3b82f6",
@@ -135,15 +141,36 @@ export default function ChartRenderer({ spec }: Props) {
             />
             <Tooltip />
             {spec.yKeys.length > 1 && <Legend verticalAlign="top" height={28} />}
-            {spec.yKeys.map((key, i) => (
-              <Bar
-                key={key}
-                dataKey={key}
-                fill={COLORS[i % COLORS.length]}
-                stackId={spec.stacked ? "stack" : undefined}
-                radius={[3, 3, 0, 0]}
-              />
-            ))}
+            {spec.yKeys.length === 1
+              ? (() => {
+                  const key = spec.yKeys[0];
+                  const hasTeamXValues = spec.data.some(
+                    (d) => getTeamColor(String(d[spec.xKey])) !== null
+                  );
+                  return (
+                    <Bar key={key} dataKey={key} fill={COLORS[0]} stackId={spec.stacked ? "stack" : undefined} radius={[3, 3, 0, 0]}>
+                      {hasTeamXValues &&
+                        spec.data.map((entry, idx) => (
+                          <Cell
+                            key={idx}
+                            fill={getTeamColor(String(entry[spec.xKey])) ?? COLORS[idx % COLORS.length]}
+                          />
+                        ))}
+                    </Bar>
+                  );
+                })()
+              : spec.yKeys.map((key, i) => {
+                  const teamColor = getTeamColor(key);
+                  return (
+                    <Bar
+                      key={key}
+                      dataKey={key}
+                      fill={teamColor ?? COLORS[i % COLORS.length]}
+                      stackId={spec.stacked ? "stack" : undefined}
+                      radius={[3, 3, 0, 0]}
+                    />
+                  );
+                })}
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -177,7 +204,7 @@ export default function ChartRenderer({ spec }: Props) {
                 key={key}
                 type="monotone"
                 dataKey={key}
-                stroke={COLORS[i % COLORS.length]}
+                stroke={getTeamColor(key) ?? COLORS[i % COLORS.length]}
                 strokeWidth={2}
                 dot={{ r: 3 }}
                 activeDot={{ r: 5 }}
@@ -227,7 +254,16 @@ export default function ChartRenderer({ spec }: Props) {
                 );
               }}
             />
-            <Scatter data={spec.data} fill={COLORS[0]} />
+            <Scatter data={spec.data} fill={COLORS[0]}>
+              {spec.nameKey &&
+                spec.data.some((d) => getTeamColor(String(d[spec.nameKey!])) !== null) &&
+                spec.data.map((entry, idx) => (
+                  <Cell
+                    key={idx}
+                    fill={getTeamColor(String(entry[spec.nameKey!])) ?? COLORS[idx % COLORS.length]}
+                  />
+                ))}
+            </Scatter>
           </ScatterChart>
         </ResponsiveContainer>
       </div>

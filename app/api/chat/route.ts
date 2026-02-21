@@ -67,6 +67,27 @@ function stripFollowUps(text: string): string {
     .trim();
 }
 
+function compactHistory(
+  history: Anthropic.MessageParam[]
+): Anthropic.MessageParam[] {
+  return history.map((msg) => {
+    if (msg.role !== "user" || !Array.isArray(msg.content)) return msg;
+    return {
+      ...msg,
+      content: msg.content.map((block) => {
+        if (
+          typeof block === "object" &&
+          "type" in block &&
+          block.type === "tool_result"
+        ) {
+          return { ...block, content: "[prior tool data omitted]" };
+        }
+        return block;
+      }),
+    };
+  });
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -82,18 +103,27 @@ export async function POST(req: NextRequest) {
     const claude = getClaudeClient();
 
     const messages: Anthropic.MessageParam[] = [
-      ...history,
+      ...compactHistory(history),
       { role: "user", content: message },
     ];
 
     // Run the agentic tool-use loop
-    let response = await claude.messages.create({
-      model: CLAUDE_MODEL,
-      max_tokens: 8192,
-      system: SYSTEM_PROMPT,
-      tools: cfbdTools,
-      messages,
-    });
+    let response = await (async () => {
+      try {
+        return await claude.messages.create({
+          model: CLAUDE_MODEL,
+          max_tokens: 8192,
+          system: SYSTEM_PROMPT,
+          tools: cfbdTools,
+          messages,
+        });
+      } catch (err) {
+        if (err instanceof Anthropic.RateLimitError) {
+          console.error("[429 rate limit] prompt:", JSON.stringify(messages));
+        }
+        throw err;
+      }
+    })();
 
     while (response.stop_reason === "tool_use") {
       const toolUseBlocks = response.content.filter(
@@ -114,6 +144,7 @@ export async function POST(req: NextRequest) {
               content: JSON.stringify(result),
             };
           } catch (err) {
+            console.error(`[tool] ${toolUse.name} failed`, err);
             return {
               type: "tool_result" as const,
               tool_use_id: toolUse.id,
@@ -127,13 +158,22 @@ export async function POST(req: NextRequest) {
       messages.push({ role: "assistant", content: response.content });
       messages.push({ role: "user", content: toolResults });
 
-      response = await claude.messages.create({
-        model: CLAUDE_MODEL,
-        max_tokens: 8192,
-        system: SYSTEM_PROMPT,
-        tools: cfbdTools,
-        messages,
-      });
+      response = await (async () => {
+        try {
+          return await claude.messages.create({
+            model: CLAUDE_MODEL,
+            max_tokens: 8192,
+            system: SYSTEM_PROMPT,
+            tools: cfbdTools,
+            messages,
+          });
+        } catch (err) {
+          if (err instanceof Anthropic.RateLimitError) {
+            console.error("[429 rate limit] prompt:", JSON.stringify(messages));
+          }
+          throw err;
+        }
+      })();
     }
 
     const textBlock = response.content.find(

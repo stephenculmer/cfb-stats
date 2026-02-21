@@ -18,25 +18,6 @@ export const cfbdTools: Tool[] = [
     },
   },
   {
-    name: "cfbd_get_team_records",
-    description:
-      "Get win/loss records for one or more teams. Returns yearly records with total wins/losses plus conference, home, and away breakdowns. Great for comparing team performance across seasons.",
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        year: { type: "integer", description: "Season year (e.g., 2023)" },
-        team: {
-          type: "string",
-          description: "Team name (e.g., 'Alabama', 'Ohio State')",
-        },
-        conference: {
-          type: "string",
-          description: "Conference abbreviation to get all team records for a conference",
-        },
-      },
-    },
-  },
-  {
     name: "cfbd_get_team_stats",
     description:
       "Get season team statistics for offense and defense. Includes rushing yards, passing yards, points scored, points allowed, turnovers, and many other stats. Requires a year.",
@@ -171,27 +152,6 @@ export const cfbdTools: Tool[] = [
         excludeGarbageTime: {
           type: "boolean",
           description: "Exclude garbage time plays from calculations (default false)",
-        },
-      },
-    },
-  },
-  {
-    name: "cfbd_get_ppa_players_season",
-    description:
-      "Get season-level Predicted Points Added (PPA) advanced metrics for individual players. Shows which players are most efficient and impactful by position. Use when asked about player efficiency, advanced player metrics, or PPA leaders.",
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        year: { type: "integer", description: "Season year (e.g., 2023)" },
-        team: { type: "string", description: "Filter by team name" },
-        conference: { type: "string", description: "Conference abbreviation filter" },
-        position: {
-          type: "string",
-          description: "Position filter (e.g., 'QB', 'RB', 'WR', 'TE', 'OL')",
-        },
-        threshold: {
-          type: "number",
-          description: "Minimum usage threshold (minimum number of plays) to filter out small samples",
         },
       },
     },
@@ -414,9 +374,6 @@ export async function executeTool(
     case "cfbd_get_teams":
       return cfbdFetch("/teams", params);
 
-    case "cfbd_get_team_records":
-      return cfbdFetch("/records", params);
-
     case "cfbd_get_team_stats":
       return cfbdFetch("/stats/season", params);
 
@@ -432,28 +389,25 @@ export async function executeTool(
     // ── Phase 5: Expanded tool coverage ──────────────────────────────────────
 
     case "cfbd_get_player_season_stats":
-      return cfbdFetch("/stats/players/season", params);
+      return cfbdFetch("/stats/player/season", params);
 
     case "cfbd_get_player_game_stats":
-      return cfbdFetch("/stats/game/players", params);
+      return cfbdFetch("/games/players", params);
 
     case "cfbd_get_ppa_teams":
-      return cfbdFetch("/ppa/teams", params);
-
-    case "cfbd_get_ppa_players_season":
-      return cfbdFetch("/ppa/players/season", params);
+      return cfbdFetch("/ppa/season", params);
 
     case "cfbd_get_betting_lines":
-      return cfbdFetch("/lines", params);
+      return cfbdFetch("/betting", params);
 
     case "cfbd_get_matchup_history":
       return cfbdFetch("/teams/matchup", params);
 
     case "cfbd_get_transfer_portal":
-      return cfbdFetch("/player/portal", params);
+      return cfbdFetch("/portal", params);
 
     case "cfbd_get_draft_picks":
-      return cfbdFetch("/draft/picks", params);
+      return cfbdFetch("/draft", params);
 
     case "cfbd_get_coaches":
       return cfbdFetch("/coaches", params);

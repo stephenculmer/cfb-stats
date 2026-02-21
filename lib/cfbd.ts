@@ -1,4 +1,4 @@
-const CFBD_BASE_URL = "https://api.collegefootballdata.com";
+const CFBD_BASE_URL = "https://apinext.collegefootballdata.com";
 
 function getApiKey(): string {
   const key = process.env.CFBD_API_KEY;
@@ -20,15 +20,21 @@ export async function cfbdFetch<T>(
     }
   }
 
+  console.log(`[cfbd] --> GET ${url.toString()}`);
   const response = await fetch(url.toString(), {
     headers: {
       Authorization: `Bearer ${getApiKey()}`,
       Accept: "application/json",
     },
-    // Next.js fetch cache: revalidate frequently-changing data every hour,
-    // old seasons can stay cached longer (caller can override via next option)
-    next: { revalidate: 3600 },
+    // TODO: restore caching (next: { revalidate: 3600 }) after confirming response logs work
+    cache: "no-store",
   });
+
+  const contentType = response.headers.get("content-type") ?? "";
+  if (contentType.includes("text/html")) {
+    console.error(`[cfbd] HTML response (not JSON) — ${url.toString()}`);
+    throw new Error(`CFBD API returned HTML — endpoint may not exist: ${url.toString()}`);
+  }
 
   if (!response.ok) {
     console.error(`[cfbd] ${response.status} ${response.statusText} — ${url.toString()}`);
@@ -37,7 +43,20 @@ export async function cfbdFetch<T>(
     );
   }
 
-  const data = await response.json();
-  console.log(`[cfbd] ${response.status} ${url.toString()}`, data);
-  return data as T;
+  let text: string;
+  try {
+    text = await response.text();
+  } catch (err) {
+    console.error(`[cfbd] <-- ${response.status} body read error — ${url.toString()}`, err);
+    throw err;
+  }
+
+  console.log(`[cfbd] <-- ${response.status} ${url.toString()} ${text}`);
+
+  try {
+    return JSON.parse(text) as T;
+  } catch (err) {
+    console.error(`[cfbd] JSON parse error — ${url.toString()}`, err, text);
+    throw err;
+  }
 }
