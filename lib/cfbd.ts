@@ -31,10 +31,13 @@ export async function cfbdFetch<T>(
   });
 
   if (!response.ok) {
+    console.error(`[cfbd] ${response.status} ${response.statusText} — ${url.toString()}`);
     throw new Error(
       `CFBD API error: ${response.status} ${response.statusText} — ${url.toString()}`
     );
   }
 
-  return response.json() as Promise<T>;
+  const data = await response.json();
+  console.log(`[cfbd] ${response.status} ${url.toString()}`, data);
+  return data as T;
 }
