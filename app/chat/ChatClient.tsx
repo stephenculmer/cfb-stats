@@ -97,6 +97,15 @@ export default function ChatClient() {
     }
   }
 
+  function handleRetry() {
+    const lastUserMsg = messages.findLast((m) => m.role === "user");
+    if (!lastUserMsg) return;
+    const content = lastUserMsg.content;
+    setError(null);
+    setMessages((prev) => prev.slice(0, -1));
+    handleSubmit(content);
+  }
+
   function handleReset() {
     setMessages([]);
     setApiHistory([]);
@@ -146,8 +155,14 @@ export default function ChatClient() {
               />
             ))}
             {error && (
-              <div className="text-sm text-red-600 dark:text-red-400 px-1">
-                Error: {error}
+              <div className="flex items-center gap-3 text-sm px-1">
+                <span className="text-red-600 dark:text-red-400">Error: {error}</span>
+                <button
+                  onClick={handleRetry}
+                  className="text-xs rounded-full border border-gray-300 dark:border-gray-700 px-3 py-1 hover:border-gray-500 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors shrink-0"
+                >
+                  Retry
+                </button>
               </div>
             )}
             <div ref={bottomRef} />
